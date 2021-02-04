@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head>
+<body>
+<p><a href="/liuyan">留言</a></p>
+<table border="1">
+    <tr>
+        <th>ID</th><th>姓名</th><th>标题</th><th>内容</th><th>时间</th><th>操作</th>
+    </tr>
+    {{range .}}
+    <tr>
+        <td>{{.Id}}</td><td>{{.Name|html}}</td><td>{{.Url|html}}</a></td><td>{{.Content|html}}</td><td>{{.Time|showtime}}</td><td>
+        <a href="/del?id={{.Id}}">删除</a> <a href="/edit?id={{.Id}}">修改</a></td>
+    </tr>
+    {{end}}
+</table>
+</body>
+</html>
