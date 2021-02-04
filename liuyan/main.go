@@ -23,7 +23,7 @@ type Liuyan struct {
 
 func ShowTime(timeUnix int) string {
 	t := time.Unix(int64(timeUnix), 0)
-	return t.Format("2006-01-02 15:04:05")
+	return t.Format("2021-01-02 15:04:05")
 }
 
 // 全局变量
