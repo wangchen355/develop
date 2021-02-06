@@ -6,6 +6,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"io"
 	"net/http"
+	"os"
+	"path"
 	"strconv"
 	"strings"
 	"text/template"
@@ -19,11 +21,13 @@ type Liuyan struct {
 	Url     string
 	Content string
 	Time    int
+	Image   string
+	ImgPath string
 }
 
 func ShowTime(timeUnix int) string {
 	t := time.Unix(int64(timeUnix), 0)
-	return t.Format("2021-01-02 15:04:05")
+	return t.Format("2006-01-02 15:04:05")
 }
 
 // 全局变量
@@ -51,7 +55,7 @@ func main() {
 	http.HandleFunc("/", listHandler)
 	http.HandleFunc("/liuyan", liuyanHandler)
 	http.HandleFunc("/del", delHandler)
-	//http.HandleFunc("/update", updateHandler)
+	http.HandleFunc("/read", uploadHandler)
 	http.HandleFunc("/edit", editHandler)
 
 	// 启动服务器
@@ -104,13 +108,14 @@ func listHandler(w http.ResponseWriter, req *http.Request) {
 	lys := []Liuyan{}
 	for rows.Next() {
 		ly := Liuyan{}
-		err := rows.Scan(&ly.Id, &ly.Name, &ly.Url, &ly.Content, &ly.Time)
+		err := rows.Scan(&ly.Id, &ly.Name, &ly.Url, &ly.Content, &ly.Time,&ly.Image)
 		if nil != err {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 		lys = append(lys, ly)
 	}
+
 
 	// 显示数据
 	err = view.ExecuteTemplate(w, "index.html", lys)
@@ -127,6 +132,25 @@ func liuyanHandler(w http.ResponseWriter, req *http.Request) {
 		name := strings.TrimSpace(req.FormValue("name"))
 		url := strings.TrimSpace(req.FormValue("url"))
 		content := strings.TrimSpace(req.FormValue("content"))
+		file, handler, err := req.FormFile("image")
+		if err != nil{
+			fmt.Println(err)
+			return
+		}
+		defer file.Close()
+		//上传的文件保存在upload路径下
+		ext := path.Ext(handler.Filename)       //获取文件后缀
+		fileNewName := string(strconv.Itoa(time.Now().Nanosecond()))+ext
+
+		f, err := os.OpenFile("./upload/"+fileNewName, os.O_WRONLY|os.O_CREATE, 0666)
+		if err != nil{
+			fmt.Println(err)
+			return
+		}
+		defer f.Close()
+
+		io.Copy(f, file)
+
 
 		// 检查参数
 		if name == "" || content == "" {
@@ -135,7 +159,7 @@ func liuyanHandler(w http.ResponseWriter, req *http.Request) {
 		}
 
 		// sql语句
-		sql, err := db.Prepare("insert into liuyan(name, url, content, time) values(?, ?, ?, ?)")
+		sql, err := db.Prepare("insert into liuyan(name, url, content, time,img) values(?, ?, ?, ?,?)")
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -143,7 +167,7 @@ func liuyanHandler(w http.ResponseWriter, req *http.Request) {
 		defer sql.Close()
 
 		// sql参数,并执行
-		_, err = sql.Exec(name, url, content, time.Now().Unix())
+		_, err = sql.Exec(name, url, content, time.Now().Unix(),"../upload/"+fileNewName)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -191,7 +215,6 @@ func delHandler(w http.ResponseWriter, r *http.Request)  {
 func editHandler(w http.ResponseWriter, r *http.Request){
 	r.ParseForm()
 	idStr := r.Form.Get("id")
-	//id, _ := strconv.ParseInt(idStr, 10, 64)
 	// 查询数据
 	sqlStr :="select * from liuyan where id=?"
 	rows, err := db.Query(sqlStr,idStr)
@@ -205,7 +228,7 @@ func editHandler(w http.ResponseWriter, r *http.Request){
 	lys := []Liuyan{}
 	for rows.Next() {
 		ly := Liuyan{}
-		err := rows.Scan(&ly.Id, &ly.Name, &ly.Url, &ly.Content, &ly.Time)
+		err := rows.Scan(&ly.Id, &ly.Name, &ly.Url, &ly.Content, &ly.Time,&ly.Image)
 		if nil != err {
 			http.Error(w, err.Error(), 500)
 			return
@@ -224,6 +247,25 @@ func editHandler(w http.ResponseWriter, r *http.Request){
 		name := strings.TrimSpace(r.FormValue("name"))
 		url := strings.TrimSpace(r.FormValue("url"))
 		content := strings.TrimSpace(r.FormValue("content"))
+		file, handler, err := r.FormFile("image")
+		if err != nil{
+			fmt.Println(err)
+			return
+		}
+		defer file.Close()
+		//上传的文件保存在upload路径下
+		ext := path.Ext(handler.Filename)       //获取文件后缀
+		fileNewName := string(strconv.Itoa(time.Now().Nanosecond()))+ext
+
+		f, err := os.OpenFile("./upload/"+fileNewName, os.O_WRONLY|os.O_CREATE, 0666)
+		if err != nil{
+			fmt.Println(err)
+			return
+		}
+		defer f.Close()
+
+		io.Copy(f, file)
+
 
 		// 检查参数
 		if name == "" || content == "" {
@@ -232,7 +274,7 @@ func editHandler(w http.ResponseWriter, r *http.Request){
 		}
 
 		// sql语句
-		sql, err := db.Prepare("update liuyan  set name=?, url=?, content=?, time=? where id =?")
+		sql, err := db.Prepare("update liuyan  set name=?, url=?, content=?, time=?,img=? where id =?")
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -240,7 +282,7 @@ func editHandler(w http.ResponseWriter, r *http.Request){
 		defer sql.Close()
 
 		// sql参数,并执行
-		_, err = sql.Exec(name, url, content, time.Now().Unix(),idStr)
+		_, err = sql.Exec(name, url, content, time.Now().Unix(),"./upload/"+fileNewName,idStr)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -253,4 +295,11 @@ func editHandler(w http.ResponseWriter, r *http.Request){
 
 		return
 	}
+}
+//通过路径显示图片
+func uploadHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	imgStr := r.Form.Get("img")
+	imgpath := imgStr
+	http.ServeFile(w, r, imgpath)
 }

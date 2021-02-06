@@ -5,11 +5,12 @@
 </head>
 <body>
 
-<form method="post">
+<form method="post" enctype="multipart/form-data">
     {{range .}}
     姓名:<input type="text" name="name" value="{{.Name|html}}" /><br>
     标题:<input type="text" name="url" value="{{.Url|html}}"/><br>
     内容:<input type="text" name="content" value="{{.Content|html}}"/><br>
+    图片:<input type="file" name="image" value="{{.Image|html}}"/><br>
     <input type="submit" value="提交" />
     {{end}}
 </form>
